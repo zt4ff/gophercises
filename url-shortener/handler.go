@@ -1,37 +1,64 @@
 package urlshort
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
+
+	"github.com/boltdb/bolt"
 )
 
-// MapHandler will return an http.HandlerFunc (which also
-// implements http.Handler) that will attempt to map any
-// paths (keys in the map) to their corresponding URL (values
-// that each key in the map points to, in string format).
-// If the path is not provided in the map, then the fallback
-// http.Handler will be called instead.
-func MapHandler(pathsToUrls map[string]string, fallback http.Handler) http.HandlerFunc {
-	//	TODO: Implement this...
-	return nil
+type AddPathRequest struct {
+	Path string `json:"path"`
+	URL  string `json:"url"`
 }
 
-// YAMLHandler will parse the provided YAML and then return
-// an http.HandlerFunc (which also implements http.Handler)
-// that will attempt to map any paths to their corresponding
-// URL. If the path is not provided in the YAML, then the
-// fallback http.Handler will be called instead.
-//
-// YAML is expected to be in the format:
-//
-//   - path: /some-path
-//     url: https://www.some-url.com/demo
-//
-// The only errors that can be returned all related to having
-// invalid YAML data.
-//
-// See MapHandler to create a similar http.HandlerFunc via
-// a mapping of paths to urls.
-func YAMLHandler(yml []byte, fallback http.Handler) (http.HandlerFunc, error) {
-	// TODO: Implement this...
-	return nil, nil
+func AddPathHandler(db *bolt.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var req AddPathRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		if req.Path == "" || req.URL == "" {
+			http.Error(w, "Path and URL must not be empty", http.StatusBadRequest)
+			return
+		}
+
+		err := CreatePath(db, req.Path, req.URL)
+		if err != nil {
+			http.Error(w, "Failed to save path", http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte("Path added successfully"))
+	}
+}
+
+func Handler(db *bolt.DB, fallback http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+
+		var url string
+
+		GetPath(db, path, &url)
+
+		if url != "" {
+			http.Redirect(w, r, url, http.StatusFound)
+			return
+		}
+
+		fallback.ServeHTTP(w, r)
+	}
+}
+
+func DefaultHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, "You may have inputed an invalid path")
 }

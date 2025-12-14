@@ -1,43 +1,52 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"log"
 	"net/http"
+	"time"
 	"urlshort"
+
+	"github.com/boltdb/bolt"
 )
 
 func main() {
-	mux := defaultMux()
-
-	// build the MapHandler using the mux as the fallback
-	pathsToUrls := map[string]string{
-		"/urlshort-godoc": "https://godoc.org/github.com/gophercises/urlshort",
-		"/yaml-godoc":     "https://godoc.org/gopkg.in/yaml.v2",
-	}
-	mapHandler := urlshort.MapHandler(pathsToUrls, mux)
-
-	// Build the YAMLHandler using the mapHandler as the fallback
-	yaml := `
-	- path: /urlshort
-	  url: https://github.com/gophercises/urlshort
-	- path: /urlshort-final
-	  url: https://github.com/gophercises/urlshort/tree/solution
-	`
-
-	yamlHandler, err := urlshort.YAMLHandler([]byte(yaml), mapHandler)
+	db, err := bolt.Open("paths.db", 0600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
+	defer db.Close()
+
+	yamlPath := flag.String("y", "", "This takes a path to a YAML file")
+	jsonPath := flag.String("j", "", "This takes a path to a JSON FILE")
+	flag.Parse()
+
+	pathsToUrls := make(map[string]string)
+
+	if *yamlPath != "" {
+		urlshort.ParseYAML(*yamlPath, &pathsToUrls)
+	}
+
+	if *jsonPath != "" {
+		urlshort.ParseJSON(*jsonPath, &pathsToUrls)
+	}
+
+	for path, url := range pathsToUrls {
+		urlshort.CreatePath(db, path, url)
+	}
+
+	mux := defaultMux(db)
+
+	mapHandler := urlshort.Handler(db, mux)
+
 	fmt.Println("Starting the server on :8080")
-	http.ListenAndServe(":8080", yamlHandler)
+	http.ListenAndServe(":8080", mapHandler)
 }
 
-func defaultMux() *http.ServeMux {
+func defaultMux(db *bolt.DB) *http.ServeMux {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", hello)
+	mux.HandleFunc("/", urlshort.DefaultHandler)
+	mux.HandleFunc("/add-path", urlshort.AddPathHandler(db))
 	return mux
-}
-
-func hello(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "Hello world!")
 }

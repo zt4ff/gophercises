@@ -1,0 +1,5 @@
+-- read if yaml flag is passed and read from the file
+-- read if json flag is passed and read from the file
+-- write this data to the database
+-- whenever a request to a path is made, read from the database
+-- BONUS - create a post request that writes to the database
