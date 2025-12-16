@@ -1,6 +1,11 @@
 package link
 
-import "io"
+import (
+	"fmt"
+	"io"
+
+	"golang.org/x/net/html"
+)
 
 // Link represents a link (<a href="">) in an HTML document
 type Link struct {
@@ -8,8 +13,19 @@ type Link struct {
 	Text string
 }
 
-var r io.Reader
-
 func Parse(r io.Reader) ([]Link, error) {
+	doc, err := html.Parse(r)
+	if err != nil {
+		return nil, err
+	}
+
+	dfs(doc, "")
 	return nil, nil
+}
+
+func dfs(n *html.Node, padding string) {
+	fmt.Println(padding, n.Data)
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		dfs(c, padding+"  ")
+	}
 }
