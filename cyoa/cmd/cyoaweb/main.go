@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -25,7 +26,19 @@ func main() {
 		panic(err)
 	}
 
-	h := cyoa.NewHandler(story, nil)
+	// tpl := template.Must(template.New("").Parse("Hello World!"))
+	// h := cyoa.NewHandler(story, cyoa.WithTemplate(tpl))
+
+	h := cyoa.NewHandler(story)
 	fmt.Printf("Starting the server at: %v\n", *port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", *port), h))
+}
+
+func PathFn(r *http.Request) string {
+	path := strings.TrimSpace(r.URL.Path)
+	if path == "" || path == "/" {
+		path = "/storie/intro"
+	}
+
+	return path[1:]
 }
