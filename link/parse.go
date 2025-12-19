@@ -56,7 +56,7 @@ func text(n *html.Node) string {
 	var ret string
 
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		ret += text(c) + " "
+		ret += text(c)
 	}
 
 	return ret
@@ -73,10 +73,3 @@ func linkNodes(n *html.Node) []*html.Node {
 
 	return ret
 }
-
-// func dfs(n *html.Node, padding string) {
-// 	fmt.Println(padding, n.Data)
-// 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-// 		dfs(c, padding+"  ")
-// 	}
-// }
