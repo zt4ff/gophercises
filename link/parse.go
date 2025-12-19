@@ -1,8 +1,8 @@
 package link
 
 import (
-	"fmt"
 	"io"
+	"strings"
 
 	"golang.org/x/net/html"
 )
@@ -25,7 +25,6 @@ func Parse(r io.Reader) ([]Link, error) {
 
 	for _, node := range nodes {
 		links = append(links, buildLink(node))
-		fmt.Println(node)
 	}
 
 	return links, nil
@@ -40,7 +39,26 @@ func buildLink(n *html.Node) Link {
 			break
 		}
 	}
-	ret.Text = "TODO parse the text"
+	ret.Text = strings.Join(strings.Fields(text(n)), " ")
+	return ret
+}
+
+func text(n *html.Node) string {
+	if n.Type == html.TextNode {
+		return n.Data
+	}
+
+	// ignore comments
+	if n.Type != html.ElementNode {
+		return ""
+	}
+
+	var ret string
+
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		ret += text(c) + " "
+	}
+
 	return ret
 }
 
